@@ -7,24 +7,6 @@ local M = {}
 
 local map = vim.keymap.set
 
-local hover_action = function()
-  local dap = require "dap"
-  if next(dap.sessions()) ~= nil then
-    local view = require("dap.ui.widgets").hover()
-    vim.keymap.set("n", "q", view.close, { buffer = view.buf, desc = "Close inspector" })
-    vim.keymap.set(
-      "n",
-      "g",
-      "<Cmd>lua require('dap.ui').trigger_actions({ mode = 'first' })<CR>",
-      { buffer = view.buf, desc = "Expand", nowait = true }
-    )
-    vim.print(view)
-  else
-    vim.lsp.buf.hover()
-  end
-end
-hover_action()
-
 -- map("n", ";", ":", { desc = "CMD enter command mode" })
 map("i", "jk", "<ESC>")
 map("n", "<leader>fM", vim.lsp.buf.format)

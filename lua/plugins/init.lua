@@ -119,7 +119,7 @@ return {
     cmd = "Copilot",
     event = "InsertEnter",
     config = function()
-      vim.g.copilot_proxy = "http://127.0.0.1:2080"
+      vim.g.copilot_proxy = "http://127.0.0.1:10808"
       require("copilot").setup {
         panel = {
           enabled = true,
@@ -138,7 +138,7 @@ return {
         },
         suggestion = {
           enabled = true,
-          auto_trigger = false,
+          auto_trigger = true,
           debounce = 100,
           filetypes = {
             yaml = false,
@@ -252,175 +252,109 @@ return {
     end,
   },
 
-  {
+  { 'glacambre/firenvim', build = ":call firenvim#install(0)", lazy=false },
+
+  { 
     "rcarriga/nvim-dap-ui",
-    dependencies = { "mfussenegger/nvim-dap", "nvim-neotest/nvim-nio" },
-    config = function()
-      -- local dap, dapui = require "dap", require "dapui"
-      -- dapui.setup()
-      -- dap.listeners.before.attach.dapui_config = function()
-      --   dapui.open()
-      -- end
-      -- dap.listeners.before.launch.dapui_config = function()
-      --   dapui.open()
-      -- end
-      -- dap.listeners.before.event_terminated.dapui_config = function()
-      --   dapui.close()
-      -- end
-      -- dap.listeners.before.event_exited.dapui_config = function()
-      --   dapui.close()
-      -- end
-    end,
-  },
+    dependencies = {"mfussenegger/nvim-dap", "nvim-neotest/nvim-nio"},
+    config = function () require("dapui").setup() end
+   },
+
   {
-    "mfussenegger/nvim-dap",
-    dependencies = {
-      "rcarriga/nvim-dap-ui",
-      "jbyuki/one-small-step-for-vimkind",
-      "mxsdev/nvim-dap-vscode-js",
+    "yetone/avante.nvim",
+    -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+    -- ⚠️ must add this setting! ! !
+    build = vim.fn.has("win32") ~= 0
+        and "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false"
+        or "make",
+    event = "VeryLazy",
+    version = false, -- Never set this value to "*"! Never!
+    ---@module 'avante'
+    ---@type avante.Config
+    opts = {
+      -- add any opts here
+      -- this file can contain specific instructions for your project
+      instructions_file = "avante.md",
+      -- for example
+      provider = "aihubmix",
+      providers = {
+        aihubmix = {
+          model = "gpt-5-nano"
+        },
+        claude = {
+          endpoint = "https://api.anthropic.com",
+          model = "claude-sonnet-4-20250514",
+          timeout = 30000, -- Timeout in milliseconds
+            extra_request_body = {
+              temperature = 0.75,
+              max_tokens = 20480,
+            },
+        },
+        moonshot = {
+          endpoint = "https://api.moonshot.ai/v1",
+          model = "kimi-k2-0711-preview",
+          timeout = 30000, -- Timeout in milliseconds
+          extra_request_body = {
+            temperature = 0.75,
+            max_tokens = 32768,
+          },
+        },
+        -- openai = {
+        --   endpoint = "https://api.openai.com/v1",
+        --   model = "gpt-4.1-nano",
+        --   timeout = 30000, -- Timeout in milliseconds
+        --   -- proxy = "http://127.0.0.1:10808", -- [protocol://]host[:port] Use this proxy
+        --   allow_insecure = false, -- Allow insecure server connections
+        --   extra_request_body = {
+        --     temperature = 1, -- not supported
+        --     max_completion_tokens = 8192,
+        --     top_p = 1,
+        --     n = 1,
+        --     frequency_penalty = 0,
+        --     presence_penalty = 0,
+        --     user = "avante",
+        --     -- stream = false,
+        --   },
+        -- },
+      },
     },
-    keys = function()
-      local dap = require "dap"
-      local dapui = require "dapui"
-
-      return {
-        { "<leader>da", dap.continue, desc = "Continue" },
-        { "<leader>de", dap.run_to_cursor, desc = "Run to cursor" },
-        { "<leader>dd", dap.step_over, desc = "Step over" },
-        { "<leader>df", dap.step_into, desc = "Step into" },
-        { "<leader>dg", dap.step_out, desc = "Step out" },
-        { "<leader>dr", dap.restart, desc = "Restart" },
-        { "<leader>ds", dap.pause, desc = "Pause" },
-        { "<leader>du", dapui.toggle, desc = "Toggle debug UI" },
-        { "<leader>dv", dap.toggle_breakpoint, desc = "Toggle breakpoint" },
-        { "<leader>dt", dap.terminate, desc = "Terminate" },
-      }
-    end,
-    config = function()
-      local dap = require "dap"
-
-      -- Configure the JavaScript debug adapter
-      require("dap-vscode-js").setup {
-        debugger_path = require("mason-registry").get_package("js-debug-adapter"):get_install_path(),
-        debugger_cmd = { "js-debug-adapter" },
-        adapters = {
-          "pwa-node",
-          "pwa-chrome",
-          "pwa-msedge",
-          "node-terminal",
-          "pwa-extensionHost",
-        },
-      }
-
-      -- Configure the nlua adapter
-      dap.adapters.nlua = function(callback, config)
-        callback {
-          type = "server",
-          host = config.host or "127.0.0.1",
-          port = config.port or 8086,
-        }
-      end
-
-      -- Define the configuration for Lua
-      dap.configurations.lua = {
-        {
-          type = "nlua",
-          request = "attach",
-          name = "Attach to running Neovim instance",
-          host = function()
-            return vim.fn.input "Host [127.0.0.1]: " or "127.0.0.1"
-          end,
-          port = function()
-            return tonumber(vim.fn.input "Port: ")
-          end,
-        },
-      }
-
-      dap.configurations["javascript"] = {
-        {
-          type = "pwa-node",
-          request = "launch",
-          name = "Launch file",
-          program = "${file}",
-          cwd = "${workspaceFolder}",
-          skipFiles = { "<node_internals>/**" },
-        },
-        {
-          command = "npm run dev",
-          name = "Debug with npm run dev",
-          request = "launch",
-          type = "node-terminal",
-          cwd = "${workspaceFolder}",
-          skipFiles = {
-            "<node_internals>/**",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      --- The below dependencies are optional,
+      "echasnovski/mini.pick", -- for file_selector provider mini.pick
+      "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
+      "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
+      "ibhagwan/fzf-lua", -- for file_selector provider fzf
+      "stevearc/dressing.nvim", -- for input provider dressing
+      "folke/snacks.nvim", -- for input provider snacks
+      "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
+      "zbirenbaum/copilot.lua", -- for providers='copilot'
+      {
+        -- support for image pasting
+        "HakonHarnes/img-clip.nvim",
+        event = "VeryLazy",
+        opts = {
+          -- recommended settings
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            -- required for Windows users
+            use_absolute_path = true,
           },
         },
-        {
-          command = "npm run dev",
-          name = "Debug with npm run dev pwa-node",
-          request = "launch",
-          type = "pwa-node",
-          cwd = "${workspaceFolder}",
-          skipFiles = {
-            "<node_internals>/**",
-          },
+      },
+      {
+        -- Make sure to set this up properly if you have lazy=true
+        'MeanderingProgrammer/render-markdown.nvim',
+        opts = {
+          file_types = { "markdown", "Avante" },
         },
-      }
-
-      dap.adapters["pwa-node"] = {
-        type = "server",
-        host = "127.0.0.1",
-        port = "${port}",
-        executable = {
-          command = "js-debug-adapter",
-          args = {
-            "${port}",
-          },
-        },
-      }
-
-      dap.adapters["node-terminal"] = {
-        type = "server",
-        host = "127.0.0.1",
-        port = "${port}",
-        -- Because of mason we can use this command directly
-        executable = {
-          command = "js-debug-adapter",
-          args = {
-            "${port}",
-          },
-        },
-      }
-
-      dap.adapters["node"] = {
-        type = "server",
-        host = "::1",
-        port = "${port}",
-        -- Because of mason we can use this command directly
-        executable = {
-          command = "js-debug-adapter",
-          args = {
-            "${port}",
-          },
-        },
-      }
-
-      local dapui = require "dapui"
-      -- Set up DAP UI
-      dapui.setup()
-
-      -- Automatically open DAP UI when debugging starts
-      dap.listeners.after.event_initialized["dapui_config"] = function()
-        dapui.open()
-      end
-
-      -- Close DAP UI when debugging ends
-      dap.listeners.before.event_terminated["dapui_config"] = function()
-        dapui.close()
-      end
-      dap.listeners.before.event_exited["dapui_config"] = function()
-        dapui.close()
-      end
-    end,
-  },
+        ft = { "markdown", "Avante" },
+      },
+    },
+  }
 }
